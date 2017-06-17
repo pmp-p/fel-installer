@@ -1,6 +1,10 @@
 # fel-installer
 H3 board FEL installer for H3Droid and Armbian
 
+Just burn assistant source code.
+
+Binary tools not included, as they are in H3Droid.com archive.
+
 
 License:
   CC BY-ND 3.0 US
