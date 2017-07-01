@@ -5,10 +5,6 @@ Just burn assistant source code.
 
 Binary tools not included, as they are in H3Droid.com archive.
 
-
-License:
-  CC BY-ND 3.0 US
-
-
+SPDX-License-Identifier: CC-BY-ND-4.0
 
 [![PayPayl](https://img.shields.io/badge/Paypal-Me-yellow.svg)](http://paypal.me/pmpp)
