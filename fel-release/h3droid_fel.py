@@ -16,23 +16,31 @@ import glob
 
 SOC="Hx"
 
+RAMS = {
+        'kernel_addr_r' : '0x41000000',
+        'fel_scriptaddr': '0x43000000',
+        'scriptaddr'    : '0x43100000',
+        'ramdisk_addr_r': '0x50000000',
+
+    }
+
 SOCS = {
     'Orange PI Lite (Xunlong)' : {
-            'SPL' : "ub/h3/sun8i-h3-orangepi-lite",
-            'H3I_UBOOT': 'uboots/u-boot-sunxi-with-spl.bin-orangepilite',
-            'H3I_FEX'  : 'H3/orangepilite.bin',
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-lite',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepilite',
+            'H3I_FEX'   : 'H3/orangepilite.bin',
         },
 
     'Orange PI PC H3 (Xunlong)': {
-            'SPL' : "ub/h3/sun8i-h3-orangepi-pc",
-            'H3I_UBOOT': 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc',
-            'H3I_FEX'  : 'H3/orangepipc.bin',
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc',
+            'H3I_FEX'   : 'H3/orangepipc.bin',
         },
 
-    "Orange PI +2e H3 (Xunlong)": {
-            'SPL' : "ub/h3/sun8i-h3-orangepi-plus2e",
-            'H3I_UBOOT': 'u-boot-sunxi-with-spl.bin-orangepi_plus2e',
-            'H3I_FEX'  : 'H3/orangepiplus2e.bin',
+    'Orange PI +2e H3 (Xunlong)': {
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus2e',
+            'H3I_UBOOT' : 'u-boot-sunxi-with-spl.bin-orangepi_plus2e',
+            'H3I_FEX'   : 'H3/orangepiplus2e.bin',
         },
 
 }
@@ -44,13 +52,21 @@ DEV = False
 if 'debug' in sys.argv:
     FEL_SCRMODE='DBG'
     tag='[DEBUG]'
+elif 'aoe' in sys.argv:
+    FEL_SCRMODE = 'AOE'
+    tag= '[VBLADE]'
+elif 'alpha' in sys.argv:
+    FEL_SCRMODE='FNL'
+    tag= '[NETWORK]'
+elif 'cmd' in sys.argv:
+    FEL_SCRMODE='DBG'
+    tag='[A:DEBUG]'
+elif 'android' in sys.argv:
+    FEL_SCRMODE='AOS'
+    tag='[Android]'
 else:
-    if 'alpha' in sys.argv:
-        FEL_SCRMODE='FNL'
-        tag= '[NETWORK]'
-    else:
-        FEL_SCRMODE='FEL'
-        tag='installer'
+    FEL_SCRMODE='FEL'
+    tag='installer'
 
 
 os.putenv('FEL_SCRMODE',FEL_SCRMODE)
@@ -137,16 +153,17 @@ if __name__ == "__main__":
     if nanotui.NX:
         if sys.platform=='msys':
             FEL = './fel-bin/sunxi-fel.exe -l'
-            fel = 'exe'
+            FEL_fel = 'exe'
         else:
-            fel = 'x86_64'
-            FEL = './fel-bin/sunxi-fel.%s -l 2>&1' % fel
+            FEL_fel = os.popen('arch').read().strip()#'x86_64'
+
+            FEL = './fel-bin/sunxi-fel.%s -l 2>&1' % FEL_fel
     else:
-        fel = 'exe'
+        FEL_fel = 'exe'
         FEL='fel-bin\\sunxi-fel.exe -l'
 
     if nanotui.UPY:
-        os.system('fel=%s sh ./checkdev.sh &' % fel)
+        os.system('fel=%s sh ./checkdev.sh &' % FEL_fel)
 
 
     crt = None
@@ -208,7 +225,9 @@ if __name__ == "__main__":
         ANSI_CLS = ''.join( map(chr, [27, 99, 27, 91, 72, 27, 91, 50, 74] ) )
         print(ANSI_CLS)
 
-        os.putenv('FEL_KMD5', kl.get_text() )
+        KMD5 = kl.get_text()
+        os.putenv('FEL_KMD5', KMD5 )
+
 
         socname = lb.get_text()
         uboot = ''
@@ -230,28 +249,38 @@ if __name__ == "__main__":
 
 
 
+        if 'android' in sys.argv:
+            BOOTCMD= 'ub/android.cmd'
+            os.putenv('FEL_rd', 'boot/%s/%s.rd' % (KMD5,KMD5) )
+        else:
+            os.putenv('FEL_rd', 'rd/uInitrd-hybrid')
+            BOOTCMD = 'ub/boot.cmd'
+
+        os.putenv('FEL_scr', 'ub/boot.tmp')
+
         print("Starting [%s] bootstrap ..." %  uboot)
         os.putenv('FEL_SPL',uboot)
-
-        if uboot.count('h3/'):
-            SOC='H3'
-
-        os.putenv('FEL_SOC',SOC)
 
         ENV=b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         #env = 'mem=1G'
         env = ''
         env = '%s%s' % ( env, ' '*( len(ENV) - len(env) ) )
-        with open('legacy/boot.cmd','rb') as source, open('legacy/boot.tmp','wb') as destination:
+
+
+        with open(BOOTCMD,'rb') as source, open('ub/boot.tmp','wb') as destination:
             data = source.read().replace(b'd41d8cd98f00b204e9800998ecf8427e',bytes( kl.get_text() , 'utf8') )
             data = data.replace(ENV,bytes(env,'utf8') )
-            data = data.replace(b'XYZ',bytes(FEL_SCRMODE[0:3],'utf8') )
+            data = data.replace(b'%H3I_FEX%' , bytes('fex/%s' % soc['H3I_FEX'],'utf8') )
+            data = data.replace(b'XYZ'      ,bytes(FEL_SCRMODE[0:3], 'utf8') )
+            for k in RAMS:
+                data = data.replace(bytes('%%%s%%' % k,'utf8') , bytes( RAMS[k],'utf8') )
+                os.putenv( k , RAMS[k] )
             destination.write( data)
 
         ACMS=[]
 
         if sys.platform=='msys':
-            os.putenv('FEL_fel','exe')
+            os.putenv('FEL_fel',FEL_fel)
             os.system('echo /dev/ttyS? > ttys')
             for i in range(1,6):
                 acm = '/dev/ttyS%s'%i
@@ -263,7 +292,7 @@ if __name__ == "__main__":
                 if not os.path.exists(acm):
                     ACMS.append(acm)
 
-            os.putenv('FEL_fel','x86_64')
+            os.putenv('FEL_fel',FEL_fel)
 
         os.putenv('ACMS',' '.join(ACMS) )
         os.system('/bin/sh booter.sh')
