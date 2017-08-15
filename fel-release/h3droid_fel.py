@@ -5,14 +5,13 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-
 import sys
-sys.path.insert(0,'.')
-import nanotui
+
+from mpycompat import *
+import nanotui as nanotui
 import nanotui.events as events
 
 import glob
-
 
 SOC="Hx"
 
@@ -21,23 +20,50 @@ RAMS = {
         'fel_scriptaddr': '0x43000000',
         'scriptaddr'    : '0x43100000',
         'ramdisk_addr_r': '0x50000000',
-
     }
 
+
+FEL_SD = 'uboots/tools/fel-sdboot.sunxi'
+
 SOCS = {
+
+    'Orange PI Zero+2 H3 (Xunlong)' : {
+            'SPL'       : 'ub/h3/sun8i-h2-plus-orangepi-zero',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero',
+            'H3I_FEX'   : 'H3/orangepizeroplus2-h3.bin',
+        },
+
+    'Orange PI Zero H2+ (Xunlong)' : {
+            'SPL'       : 'ub/h3/sun8i-h2-plus-orangepi-zero',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero',
+            'H3I_FEX'   : 'H3/orangepizero.bin',
+        },
+
     'Orange PI Lite (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-lite',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepilite',
             'H3I_FEX'   : 'H3/orangepilite.bin',
         },
 
-    'Orange PI PC H3 (Xunlong)': {
+    'Orange PI PC+ (Xunlong)' : {
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc-plus',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc_plus',
+            'H3I_FEX'   : 'H3/orangepipcplus.bin',
+        },
+
+    'Orange PI + (Xunlong)' : {
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_plus',
+            'H3I_FEX'   : 'H3/orangepiplus.bin',
+        },
+
+    'Orange PI PC (Xunlong)': {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc',
             'H3I_FEX'   : 'H3/orangepipc.bin',
         },
 
-    'Orange PI +2e H3 (Xunlong)': {
+    'Orange PI +2e (Xunlong)': {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus2e',
             'H3I_UBOOT' : 'u-boot-sunxi-with-spl.bin-orangepi_plus2e',
             'H3I_FEX'   : 'H3/orangepiplus2e.bin',
@@ -46,13 +72,9 @@ SOCS = {
 }
 
 
-#DEV = os.path.exists('/DEV')
-DEV = False
+DEV = os.path.exists('/c/tmp/DEV')
 
-if 'debug' in sys.argv:
-    FEL_SCRMODE='DBG'
-    tag='[DEBUG]'
-elif 'aoe' in sys.argv:
+if 'aoe' in sys.argv:
     FEL_SCRMODE = 'AOE'
     tag= '[VBLADE]'
 elif 'alpha' in sys.argv:
@@ -69,12 +91,20 @@ else:
     tag='installer'
 
 
+if DEV:
+    NBD_PATH  = '/c/tmp/'
+else:
+    NBD_PATH= '/tmp/'
+
+H3II_MASK = "h3droid_installer-?.?.?.img"
+
+
 os.putenv('FEL_SCRMODE',FEL_SCRMODE)
 
 def condition1(disp):
     global SOC,FEL,CID
 
-    if nanotui.UPY:
+    if UPY:
         # mpy popen makes zombies
         try:
             with open('devtest.txt','rb') as f:
@@ -105,10 +135,8 @@ def condition1(disp):
     return False
 
 
-
-# mem=335M"
 def step2():
-    global d,lb,kl
+    global d,lb,kl,li,warn0, debug_lb
 
     items = []
     for item in glob.glob('ub/h?/sun8i-h*'):
@@ -118,27 +146,44 @@ def step2():
 
     items.sort()
 
-    lb = add('uboot','ListBox',items=items,width=30,height=15,x=3,y=5 )
+    add.crlf()
 
-    add(None,'Frame',text="Board choice :",x=2,y=4,width=lb.width+2,height=lb.height+4)
+    fb = add('Frame',text="Board choice :",width=-32,height=-18).valign(warn0.i,pad=1)
+    lb = add('ListBox',name='uboot',items=items) #,width=90,height=90 )
+    lb.reparent_to(fb,expand=True)
 
-
-    warn(' <- Select Board Model, then start')
-
-    link3('')
-
-
-    z=2
     items = []
     for item in glob.glob('boot/*'):
         items.append( item.rsplit('/',1)[-1] )
-    last =kl = add('krn','ListBox',items=items,width =35,height = lb.height-z+1,y=lb.y+z,x=40)
 
-    add(None,'Frame',text="Kernel choice :",x=last.x-2,y=last.y-2,width=last.width+2,height=last.height)
 
-    b = add('fel','Button',text="Start FEL", width=8,x=22,y=22)
+    kf = add('Frame',text="Kernel choice :",width=-30,height=-8, x=-40 ).halign(fb,pad=1)
+    kl = add('ListBox',name='krn', items=items) #,width=90,height=90 )
+    kl.reparent_to(kf,expand=True)
+
+    df = add('Frame',text="Debug Channel :",width=-30,height=-6, x=-40 ).valign(kf,pad=1)
+    debug_lb = add('ListBox',name='debug_lb', items=['/dev/tty0 (HDMI)','/dev/ttyS0 (UART)']).reparent_to(df,expand=True)
+    add.crlf()
+
+    items = []
+    for item in glob.glob( NBD_PATH + H3II_MASK ):
+        items.append( item.rsplit('/',1)[-1] )
+
+    items.sort()
+    items.reverse()
+
+    fli = add('Frame',text='Version Picker:',width=-35).halign(kf,pad=1)
+    li = add('ListBox',name='li',items=items)
+    li.reparent_to(fli,expand=True)
+
+
+
+    b = add('Button',name='fel', text="Start FEL", width=8,x=22,y=22)
     b.finish_dialog = events.ACTION_OK
 
+    b.valign(df,pad=1)
+
+    add.by_names.get('cancel').valign(fli,pad=1)
 
 
 
@@ -162,29 +207,46 @@ if __name__ == "__main__":
         FEL_fel = 'exe'
         FEL='fel-bin\\sunxi-fel.exe -l'
 
-    if nanotui.UPY:
+    if UPY:
         os.system('fel=%s sh ./checkdev.sh &' % FEL_fel)
 
 
     crt = None
 
     def panic(error=None):
-        if not nanotui.UPY:
+        if not UPY:
             sys.stdout = sys.__stdout__
         else:
             os.system('kill -9 $(head -n 1 devtest.txt)')
 
 
-    with nanotui.VisualPage('main',"H3Droid.com FEL %s" % tag,80, 25) as add:
+    with nanotui.VisualPage('main',"H3Droid.com FEL %s" % tag,x=[4,-4],y=[4,-4]) as add:
         try:
             step = 1
-            add(None,'Label', text="-------------------------")
+            add('Label', text="--------------------------")
 
-            add.frame("USB Device Status                          ", dx=8,dy=-3)
+            f=add('Frame',text="USB Device Status",width=-45,height=-3).halign(add.last,pad=8)
+            warn(f,f.width, add.last, add.last.width)
+            status=add.textfill('')
 
-            status=add.anchor('-------------------------------------------\n\n\n')
+            add.crlf(3)
 
-            warn = add.anchor(' 1 - UNLOCK SD-CARD from DEVICE SLOT !\n\n')
+            warn0 = add.anchor('1 - UNLOCK SD-CARD from DEVICE SLOT, or use special FEL sdcard !        ]')
+
+            add.crlf()
+
+            warn1 = add.anchor('2 - Link board with micro-USB *DATA* cable        ]')
+
+            add.crlf()
+
+            warn2 = add.anchor('3 - Reset or Power on board, while pressing FEL button if board has one     ]')
+
+            add.crlf()
+
+            b=add('Button', name='cancel', text="Cancel", width=8)
+            b.finish_dialog = events.ACTION_CANCEL
+
+            #add.crlf(-35)
 
             condition1(status)
 
@@ -193,27 +255,16 @@ if __name__ == "__main__":
                 global step
                 if step<2 and condition1(status):
                     step += 1
-                    warn(' ')
-                    link(' ')
+                    warn1(' ')
+                    warn2(' ')
+                    warn0('Select Board, then click Start')
                     step2()
                     add.redraw()
-                Time.sleep(.3)
 
             add.handler = step1
 
-
-            link = add.anchor('\n\n')
-            link(text='2 - Link board with micro-USB *DATA* cable')
-
-            link3 = add.anchor('\n\n')
-            link3(text='3 - Reset or Power on board')
-
-
-
-            b=add('cancel','Button', text="Cancel", width=8,x=70,y=22)
-            b.finish_dialog = events.ACTION_CANCEL
-
         except Exception as e:
+            print(e)
             add.End()
             panic(error=e)
 
@@ -233,6 +284,9 @@ if __name__ == "__main__":
         uboot = ''
 
         print("Searching SPL for [%s]" % socname)
+        os.putenv('H3I_BOARD', socname )
+
+
         dtb=''
         soc = SOCS[socname]
 
@@ -248,10 +302,9 @@ if __name__ == "__main__":
             os.putenv('FEL_FEX', soc['H3I_FEX'] )
 
 
-
         if 'android' in sys.argv:
             BOOTCMD= 'ub/android.cmd'
-            os.putenv('FEL_rd', 'boot/%s/%s.rd' % (KMD5,KMD5) )
+            os.putenv('FEL_rd', 'rd/android') #%s' % KMD5) #,KMD5) )
         else:
             os.putenv('FEL_rd', 'rd/uInitrd-hybrid')
             BOOTCMD = 'ub/boot.cmd'
@@ -261,15 +314,8 @@ if __name__ == "__main__":
         print("Starting [%s] bootstrap ..." %  uboot)
         os.putenv('FEL_SPL',uboot)
 
-        ENV=b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        #env = 'mem=1G'
-        env = ''
-        env = '%s%s' % ( env, ' '*( len(ENV) - len(env) ) )
-
-
         with open(BOOTCMD,'rb') as source, open('ub/boot.tmp','wb') as destination:
             data = source.read().replace(b'd41d8cd98f00b204e9800998ecf8427e',bytes( kl.get_text() , 'utf8') )
-            data = data.replace(ENV,bytes(env,'utf8') )
             data = data.replace(b'%H3I_FEX%' , bytes('fex/%s' % soc['H3I_FEX'],'utf8') )
             data = data.replace(b'XYZ'      ,bytes(FEL_SCRMODE[0:3], 'utf8') )
             for k in RAMS:
@@ -277,24 +323,31 @@ if __name__ == "__main__":
                 os.putenv( k , RAMS[k] )
             destination.write( data)
 
-        ACMS=[]
+        os.putenv('FEL_fel',FEL_fel)
+        os.putenv('H3I_DBG', debug_lb.get_text().split(' ')[0] )
 
-        if sys.platform=='msys':
-            os.putenv('FEL_fel',FEL_fel)
-            os.system('echo /dev/ttyS? > ttys')
-            for i in range(1,6):
-                acm = '/dev/ttyS%s'%i
-                if not os.path.isfile(acm):
-                    ACMS.append(acm)
-        else:
-            for i in range(0,3):
-                acm = '/dev/ttyACM%s'%i
-                if not os.path.exists(acm):
-                    ACMS.append(acm)
 
-            os.putenv('FEL_fel',FEL_fel)
+#        ACMS=[]
+#
+#        if sys.platform=='msys':
+#            os.putenv('FEL_fel',FEL_fel)
+#            os.system('echo /dev/ttyS? > ttys')
+#            for i in range(1,6):
+#                acm = '/dev/ttyS%s'%i
+#                if not os.path.isfile(acm):
+#                    ACMS.append(acm)
+#        else:
+#            for i in range(0,3):
+#                acm = '/dev/ttyACM%s'%i
+#                if not os.path.exists(acm):
+#                    ACMS.append(acm)
+#
+#            os.putenv('FEL_fel',FEL_fel)
+#
+#        os.putenv('ACMS',' '.join(ACMS) )
 
-        os.putenv('ACMS',' '.join(ACMS) )
+        os.putenv('H3I_IMG',NBD_PATH + li.get_text() )
+
         os.system('/bin/sh booter.sh')
 
     else:
