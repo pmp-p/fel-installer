@@ -1,5 +1,5 @@
-# this is a work in progress only h3droid installation is handled for now
-# documentation will be hosted at https://www.hdroid.com/fel/
+# This is a work in progress only h3droid installation is handled for now
+# documentation will be hosted at https://www.H3Droid.com/fel/
 
 python3 -u -B h3droid_fel.py
  
