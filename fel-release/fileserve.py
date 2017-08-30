@@ -20,7 +20,7 @@ if not ADB:
     raise SystemExit
 
 
-
+ADB_QUIET = False
 
 
 import sys
@@ -157,22 +157,34 @@ def davserver_run():
         print('davserver terminated')
 
 def sshadb_run():
-    global cmda
+    global cmda, ADB_QUIET
+
+    if sys.platform=='msys':
+        os.system(' '.join(cmda) )
+        return
+
+
     import subprocess
     pro = subprocess.Popen( cmda ,bufsize=0,shell=False,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     try:
         while not RunTime.wantQuit:
             void = pro.stdout.read(1)
-            print( void.decode(), end='', file=sys.stderr )
-            sys.stderr.flush()
+            if ADB_QUIET:
+                print( void.decode(), end='', file=sys.stderr )
+                sys.stderr.flush()
+            else:
+                print( void.decode(), end='', file=sys.stdout )
+                sys.stdout.flush()
     except Exception as e:
         ABORT(e)
     finally:
         print('adb link terminated')
 
+
 def ndb_run():
-    global H3I_IMG
+    global H3I_IMG, nbd_server3
     import nbd_server3 as nbd
+    nbd_server3 = nbd
     try:
         nbd.main(H3I_IMG,9000,'127.0.0.1', offset=4194304)
     except Exception as e:
@@ -186,12 +198,14 @@ if 0:
     cmd += ' -L127.0.0.1:8266:127.0.0.1:8266 -R127.0.0.1:9000:127.0.0.1:9000 -R127.0.0.1:8080:127.0.0.1:8080'
     cmd += ' -p 2222 root@127.0.0.1 /sbin/bash /data/u-root/fel-initrd/callback.sh'
 else:
-    cmd = "%s shell /data/u-root/fel-initrd/callback.sh" % ADB
+    # double / to prevent msys2 to destroy command line with windows path flavor
+    cmd = "%s shell //rd//callback.sh" % ADB
 cmda = cmd.split(' ')
 
 benv = []
+
 for k in os.environ:
-    if k.startswith('H3I_'):
+    if k.startswith('H3I_') or k.startswith('FEL_') or k.startswith('ADB'):
         benv.append('export %s="%s"' % (k, os.getenv(k) ) )
 benv.append('')
 
@@ -200,16 +214,18 @@ print("================= BENV ======================")
 print(benv,end='')
 print("================= /BENV =====================")
 import binascii
-benv = binascii.b2a_base64( bytes(benv,'utf8') ).decode().strip() + '=='
+benv = bytes(benv,'utf8')
+open('/tmp/board.last','wb').write(benv)
+benv = binascii.b2a_base64( benv ).decode().strip() + '=='
 
 if 0:
     cmd = """
 "%s-%s-%s" "%s:%s:%s" "%s"
 """ % (y,my,d,h,m,s, benv )
 else:
-    fbcon = 'cvbs'
-    if not str(os.getenv('H3I_FEX')).count('orangepizero.bin'):
-        fbcon = 'fbcon'
+#    fbcon = 'cvbs'
+#    if not str(os.getenv('H3I_FEX')).count('orangepizero.bin'):
+    fbcon = 'fbcon'
     cmd = """
 %s-%s-%s %s:%s:%s "%s" "%s"
 """ % (y,my,d,h,m,s, benv, fbcon )
@@ -217,44 +233,67 @@ else:
 
 cmda.append( cmd.strip() )
 
+
+nbd_thr = threading.Thread(target=ndb_run, args=[])
+nbd_thr.daemon = True
+nbd_thr.start()
+
+Time.sleep(1)
+
 print("================ ADB ================")
 print(' '.join(cmda) )
+open('/tmp/adb.cb.sh','wb').write( bytes( ' '.join(cmda)  , 'utf8') )
 print("================ /ADB ===============")
-#raise SystemExit
 
 
 davserver_thr = threading.Thread(target=davserver_run, args=[])
 davserver_thr.daemon = True
 davserver_thr.start()
 
+Time.sleep(1)
+
 sshadb_thr =  threading.Thread(target=sshadb_run, args= [] )
 sshadb_thr.daemon = True
 sshadb_thr.start()
 
-nbd_thr = threading.Thread(target=ndb_run, args=[])
-nbd_thr.daemon = True
-nbd_thr.start()
 
-if 1:
-    try:
-        while not RunTime.wantQuit:
-            try:
-                Time.sleep(.01)
-            except KeyboardInterrupt:
-                ABORT('KeyboardInterrupt')
-    except Exception as e:
-        ABORT(e)
-    finally:
-        print('bye')
-    raise SystemExit
+#if 0:
+#    try:
+#        while not RunTime.wantQuit:
+#            try:
+#                Time.sleep(.01)
+#            except KeyboardInterrupt:
+#                ABORT('KeyboardInterrupt')
+#    except Exception as e:
+#        ABORT(e)
+#    finally:
+#        print('bye')
+#
+#    raise SystemExit
+
+print('\nWaiting for nbd connexion to installer image')
+for x in range(1,20):
+    print('.',end='')
+    sys.stdout.flush()
+    Time.sleep(1)
+    if nbd_server3.ACTIVITY:
+        print('\nBoard has connected on nbd server')
+        break
 else:
-    Time.sleep(2)
-    print('Waiting for websocket control channel')
-    for x in range(0,11):
-        print('.',end='')
-        sys.stdout.flush()
-        Time.sleep(1)
-    exec( compile(open('insert_coin.py').read(), 'insert_coin', 'exec'), globals() ,locals() )
+    print('\nERROR: no nbd callback, probably ADB did not call board with success, please retry')
+    raise SystemExit
+
+print('\nWaiting for websocket control channel (can take 30 seconds)')
+#FIXME: hook webdav to know when server is ready or use special nbd sector
+for x in range(1,26):
+    print('.',end='')
+    sys.stdout.flush()
+    Time.sleep(1)
+
+
+ADB_QUIET = True  #do not spam ui screen
+
+exec( compile(open('insert_coin.py').read(), 'insert_coin', 'exec'), globals() ,locals() )
 
 
 

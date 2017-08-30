@@ -27,46 +27,67 @@ FEL_SD = 'uboots/tools/fel-sdboot.sunxi'
 
 SOCS = {
 
-    'Orange PI Zero+2 H3 (Xunlong)' : {
+    'OPI Zero DBG' : {
+            'SPL'       : 'ub/h2/sun8i-h2-spl.bin-orangepi_zero',
+            'H3I_UBOOT' : 'ub/dbg/u-boot-sunxi-with-spl.bin-orangepi_zero',
+            'H3I_FEX'   : 'H3/orangepizero.bin',
+            'H3I_AB'    : 'orange-pi-zero',
+        },
+
+    'Orange PI Zero +2 H3 (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h2-plus-orangepi-zero',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero',
             'H3I_FEX'   : 'H3/orangepizeroplus2-h3.bin',
+            'H3I_AB'    : 'orange-pi-zero-2-h3',
         },
 
-    'Orange PI Zero H2+ (Xunlong)' : {
-            'SPL'       : 'ub/h3/sun8i-h2-plus-orangepi-zero',
+    'Orange PI Zero H2 (Xunlong)' : {
+            'SPL'       : 'ub/h2/sun8i-h2-plus-orangepi-zero',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero',
             'H3I_FEX'   : 'H3/orangepizero.bin',
+            'H3I_AB'    : 'orange-pi-zero',
         },
 
     'Orange PI Lite (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-lite',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepilite',
             'H3I_FEX'   : 'H3/orangepilite.bin',
-        },
-
-    'Orange PI PC+ (Xunlong)' : {
-            'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc-plus',
-            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc_plus',
-            'H3I_FEX'   : 'H3/orangepipcplus.bin',
+            'H3I_AB'    : 'orange-pi-lite',
         },
 
     'Orange PI + (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_plus',
             'H3I_FEX'   : 'H3/orangepiplus.bin',
+            'H3I_AB'    : 'orange-pi-plus',
+        },
+
+    'Orange Pi +2 (Xunlong)': {
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_plus',
+            'H3I_FEX'   : 'H3/orangepiplus.bin',
+            'H3I_AB'    : 'orange-pi-plus-2',
         },
 
     'Orange PI PC (Xunlong)': {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc',
             'H3I_FEX'   : 'H3/orangepipc.bin',
+            'H3I_AB'    : 'orange-pi-pc',
+        },
+
+    'Orange PI PC+ (Xunlong)' : {
+            'SPL'       : 'ub/h3/sun8i-h3-orangepi-pc-plus',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_pc_plus',
+            'H3I_FEX'   : 'H3/orangepipcplus.bin',
+            'H3I_AB'    : 'orange-pi-pc-plus',
         },
 
     'Orange PI +2e (Xunlong)': {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus2e',
             'H3I_UBOOT' : 'u-boot-sunxi-with-spl.bin-orangepi_plus2e',
             'H3I_FEX'   : 'H3/orangepiplus2e.bin',
+            'H3I_AB'    : 'orange-pi-plus-2e',
         },
 
 }
@@ -80,7 +101,7 @@ if 'aoe' in sys.argv:
 elif 'alpha' in sys.argv:
     FEL_SCRMODE='FNL'
     tag= '[NETWORK]'
-elif 'cmd' in sys.argv:
+elif 'dbg' in sys.argv:
     FEL_SCRMODE='DBG'
     tag='[A:DEBUG]'
 elif 'android' in sys.argv:
@@ -88,7 +109,8 @@ elif 'android' in sys.argv:
     tag='[Android]'
 else:
     FEL_SCRMODE='FEL'
-    tag='installer'
+    tag='installer %s' % open('version','rb').read().decode()
+
 
 
 if DEV:
@@ -102,12 +124,12 @@ H3II_MASK = "h3droid_installer-?.?.?.img"
 os.putenv('FEL_SCRMODE',FEL_SCRMODE)
 
 def condition1(disp):
-    global SOC,FEL,CID
+    global SOC,FEL,CID,add
 
     if UPY:
         # mpy popen makes zombies
         try:
-            with open('devtest.txt','rb') as f:
+            with open('/tmp/devtest.txt','rb') as f:
                 CID = f.readline().decode().strip()
                 test= f.readline().decode().strip()
         except Exception as e:
@@ -125,7 +147,8 @@ def condition1(disp):
         elif test.count(' H3 '):
             SOC='H3'
         else:
-            disp('Unsupported SOC : %s'%test)
+            disp('No support ! %s'%test)
+            add['zadig'].set_text('No Luck')
             return False
 
         disp(test[18:])
@@ -136,7 +159,7 @@ def condition1(disp):
 
 
 def step2():
-    global d,lb,kl,li,warn0, debug_lb
+    global d,lb,kl,li,warn0, debug_lb, disp
 
     items = []
     for item in glob.glob('ub/h?/sun8i-h*'):
@@ -162,7 +185,7 @@ def step2():
     kl.reparent_to(kf,expand=True)
 
     df = add('Frame',text="Debug Channel :",width=-30,height=-6, x=-40 ).valign(kf,pad=1)
-    debug_lb = add('ListBox',name='debug_lb', items=['/dev/tty0 (HDMI)','/dev/ttyS0 (UART)']).reparent_to(df,expand=True)
+    debug_lb = add('ListBox',name='debug_lb', items=['/dev/tty0 (CRT)','/dev/ttyS0 (UART)']).reparent_to(df,expand=True)
     add.crlf()
 
     items = []
@@ -172,10 +195,14 @@ def step2():
     items.sort()
     items.reverse()
 
-    fli = add('Frame',text='Version Picker:',width=-35).halign(kf,pad=1)
+    fli = add('Frame',text='Version Picker:',width=-35, height=-6).halign(kf,pad=1)
     li = add('ListBox',name='li',items=items)
     li.reparent_to(fli,expand=True)
 
+
+    fld = add('Frame',text='Display:',width=-35, height=-8).valign(fli,pad=1)
+    disp = add('ListBox',name='disp',items=['HDMI/DVI/VGA','CVBS-PAL','CVBS-NTSC'])
+    disp.reparent_to(fld,expand=True)
 
 
     b = add('Button',name='fel', text="Start FEL", width=8,x=22,y=22)
@@ -183,7 +210,7 @@ def step2():
 
     b.valign(df,pad=1)
 
-    add.by_names.get('cancel').valign(fli,pad=1)
+    add.by_names.get('cancel').valign(fld,pad=1)
 
 
 
@@ -208,7 +235,7 @@ if __name__ == "__main__":
         FEL='fel-bin\\sunxi-fel.exe -l'
 
     if UPY:
-        os.system('fel=%s sh ./checkdev.sh &' % FEL_fel)
+        os.system('fel=%s sh ./fel-bin/checkdev.sh &' % FEL_fel)
 
 
     crt = None
@@ -217,21 +244,21 @@ if __name__ == "__main__":
         if not UPY:
             sys.stdout = sys.__stdout__
         else:
-            os.system('kill -9 $(head -n 1 devtest.txt)')
+            os.system('kill -9 $(head -n 1 /tmp/devtest.txt)')
 
 
-    with nanotui.VisualPage('main',"H3Droid.com FEL %s" % tag,x=[4,-4],y=[4,-4]) as add:
+    with nanotui.VisualPage('main',"H3Droid.com FEL %s " % tag,x=[4,-4],y=[4,-4]) as add:
         try:
             step = 1
-            add('Label', text="--------------------------")
+            add('Label', text="--------------------------------")
 
-            f=add('Frame',text="USB Device Status",width=-45,height=-3).halign(add.last,pad=8)
+            f=add('Frame',text="USB Device Status",width=-47,height=-3).halign(add.last,pad=8)
             warn(f,f.width, add.last, add.last.width)
             status=add.textfill('')
 
             add.crlf(3)
 
-            warn0 = add.anchor('1 - UNLOCK SD-CARD from DEVICE SLOT, or use special FEL sdcard !        ]')
+            warn0 = add.anchor('1 - UNLOCK SD-CARD from DEVICE SLOT, or use the special FEL sdcard !        ]')
 
             add.crlf()
 
@@ -243,9 +270,16 @@ if __name__ == "__main__":
 
             add.crlf()
 
+            warn3 = add.anchor('4 - if nothing happens, then you may have to click install ZADIG driver]')
+
+            add.crlf()
+
             b=add('Button', name='cancel', text="Cancel", width=8)
             b.finish_dialog = events.ACTION_CANCEL
 
+
+            b=add('Button', name='zadig', text=' Power is on but no driver, launch zadig tool')
+            b.finish_dialog = events.ACTION_NEXT
             #add.crlf(-35)
 
             condition1(status)
@@ -257,7 +291,9 @@ if __name__ == "__main__":
                     step += 1
                     warn1(' ')
                     warn2(' ')
+                    warn3(' ')
                     warn0('Select Board, then click Start')
+                    add['zadig'].set_text(' ')
                     step2()
                     add.redraw()
 
@@ -269,9 +305,10 @@ if __name__ == "__main__":
             panic(error=e)
 
     panic(None)
-
-
-    if nanotui.ec['main']==events.ACTION_OK:
+    if nanotui.ec['main']==events.ACTION_NEXT:
+        os.putenv('DESTINY','ZADIG')
+        os.system('/bin/sh booter.sh')
+    elif nanotui.ec['main']==events.ACTION_OK:
 
         ANSI_CLS = ''.join( map(chr, [27, 99, 27, 91, 72, 27, 91, 50, 74] ) )
         print(ANSI_CLS)
@@ -284,13 +321,23 @@ if __name__ == "__main__":
         uboot = ''
 
         print("Searching SPL for [%s]" % socname)
-        os.putenv('H3I_BOARD', socname )
+        os.putenv('H3I_BOARD', '%s' % socname.replace(' (Xunlong)','') )
 
 
         dtb=''
         soc = SOCS[socname]
 
         uboot = soc['SPL']
+
+        cvbs=disp.get_text().strip()
+        if cvbs.startswith('CVBS-'):
+            cvbs=cvbs.split('-',1)[-1]
+        else:
+            cvbs=''
+
+        os.putenv('H3I_CVBS',cvbs)
+        os.putenv('H3I_ARMBIAN_SIZE',"0" )
+        os.putenv('H3I_ARMBIAN',soc['H3I_AB'] )
         os.putenv('H3I_UBOOT',soc['H3I_UBOOT'] )
         os.putenv('H3I_FEX',soc['H3I_FEX'] )
         dtb=soc.get('DTB','')
@@ -309,12 +356,12 @@ if __name__ == "__main__":
             os.putenv('FEL_rd', 'rd/uInitrd-hybrid')
             BOOTCMD = 'ub/boot.cmd'
 
-        os.putenv('FEL_scr', 'ub/boot.tmp')
+        os.putenv('FEL_scr', '/tmp/boot.scr')
 
         print("Starting [%s] bootstrap ..." %  uboot)
         os.putenv('FEL_SPL',uboot)
 
-        with open(BOOTCMD,'rb') as source, open('ub/boot.tmp','wb') as destination:
+        with open(BOOTCMD,'rb') as source, open('/tmp/boot.scr','wb') as destination:
             data = source.read().replace(b'd41d8cd98f00b204e9800998ecf8427e',bytes( kl.get_text() , 'utf8') )
             data = data.replace(b'%H3I_FEX%' , bytes('fex/%s' % soc['H3I_FEX'],'utf8') )
             data = data.replace(b'XYZ'      ,bytes(FEL_SCRMODE[0:3], 'utf8') )

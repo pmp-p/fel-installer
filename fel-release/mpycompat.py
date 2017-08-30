@@ -77,6 +77,7 @@ class iowait:
 
     def __init__(self,fd,tid):
         self.fd = fd
+        self.fno = fd.fileno()
         _thread.start_new_thread(self.run,[tid,0])
 
     def run(self,*argv):
@@ -86,7 +87,7 @@ class iowait:
                 if 0:
                     self.select.ioq[fdid].append( self.fd.read(1) )
                 else:
-                    d=os.read(0,1)
+                    d=os.read(self.fno,1)
                     if d:
                         self.select.ioq[fdid].append( d )
 
@@ -203,10 +204,11 @@ def logger(*argv,**kw):
         sys.stderr.flush()
     #os.fsync(sys.stderr.fileno())
 
-def SI(dl,bw=False):
+def SI(dl,bw=0):
     u = 'B/s'
     dl = float(dl)
     if bw:
+        dl = dl/float(bw)
         for u in ['KB/s','MB/s','GB/s']:
             dl = dl/1024
             if dl<1024:
