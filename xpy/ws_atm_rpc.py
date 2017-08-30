@@ -27,173 +27,7 @@ FMTU =  int( float(MTU)/3)*2
 
 ticks = Lapse(1)
 
-
-go = Lapse(2)
-
-import _thread
-
-class fkio:
-    def __init__(self,io):
-        self.q = []
-        self.io = io
-        self.lock = _thread.allocate_lock()
-
-
-    def read(self):
-        with self.lock:
-            try:
-                return b''.join( self.q )
-            finally:
-                self.q=[]
-        return b''
-
-
-    def pipe(self,data):
-        if not isinstance(data,bytes):
-            data = bytes( data , 'utf8')
-        self.q.append(data)
-
-
-
-def popen3(cmd, mode="rwe", stdin = None):
-    import builtins
-    from os import fork,close,dup,system,_exit,pipe
-    i, o = pipe()
-    if mode[0] == "w":
-        i, o = o, i
-    pid = fork()
-    if pid:
-        close(o)
-        po = builtins.open(i, 'rb')
-        pi = builtins.open( stdin , 'wb')
-        pe = None #stderr someday
-        return pi, po, pe, pid
-
-    if mode[0] == "r":
-        close(1)
-    else:
-        close(0)
-    close(i)
-    dup(o)
-    close(o)
-    if stdin:
-        s = system('<'.join( (cmd,stdin) ) )
-    else:
-        s = system(cmd)
-    _exit(s)
-
-class subprocess:
-    fifono = 0
-
-    def __init__(self,bin,*argv,**kw):
-        self.__class__.fifono -=1
-        self.running = '/tmp/upy.%s'% abs(self.__class__.fifono)
-
-        if os.access(self.running, os.F_OK):
-            os.unlink(self.running)
-        os.system('mkfifo %s' % self.running)
-        argv='"'.join( map(str,argv) )
-        if argv:
-            argv=' "%s" '%argv
-        self.cmd = '%s%s' % (bin,argv)
-        self.stdin, self.__stdout, self.__stderr, self.pid = popen3(self.cmd, stdin = self.running )
-        self.stdout = fkio(self.__stdout)
-        print( self.stdin, self.stdout )
-        self.q = []
-        #os.system('echo -n > %s' % self.running )
-        _thread.start_new_thread( self.run , () )
-
-    def fileno(self):
-        return self.__class__.fifono
-
-    def run(self):
-        while self.running:
-            try:
-                data = self.__stdout.read(1)
-                if not data:
-                    self.terminate()
-                    break
-
-            except Exception as e:
-                if self.running:err("TRAP:",e)
-                data = '_'
-
-            if self.running:
-                with self.stdout.lock:
-                    self.stdout.pipe(data)
-
-
-    def pipe(self,data):
-        if not isinstance(data,bytes):
-            data = bytes( data , 'utf8')
-        try:
-            return self.stdin.write(data)
-        except:
-            self.terminate()
-
-    write = pipe
-
-    def communicate(self,input=None,timeout=None):
-        if input:
-            self.pipe(input)
-        return self.stdout.read().decode(), ''
-
-
-
-    def read(self,n=0):
-        #FIXME: buffering
-        return self.stdout.read()
-
-
-    def terminate(self):
-        try:
-            self.stdin.close()
-        except:
-            pass
-        finally:
-            warn('151: [%s] termination' % self.cmd)
-            if self.running:
-                io = self.running
-                self.cmd = self.running = self.stdin = self.stdout = None
-                self.__stdout.close()
-                os.unlink( io )
-        gc.collect()
-
-    kill = terminate
-
-    def poll(self):
-        if self.running is None:
-            # returncode ?
-            return True
-        return None
-
-
-if 0:
-    sp = subprocess('cat',bufsize=0)
-    p = 0
-    print("================")
-    while sp.poll() is None:
-        #print(sp)
-        if ticks:
-            p+=1
-            print('.',end='')
-            if p>10:
-                sp.terminate()
-                break
-        ro,re=sp.communicate()
-        if ro:
-            print(ro,end='')
-
-        if go:
-            print(p,sp.poll())
-            sp.pipe(b'TEST'*20+b'\n')
-
-        Time.sleep(.01)
-    print("================")
-
-    Time.sleep(2)
-    raise SystemExit
-
+keep_alive_ping = Lapse(5)
 
 if UPY:
     import os
@@ -255,7 +89,11 @@ if UPY:
                 return hxd
 
     def Popen(cmd,*argv):
-        return XIO( subprocess(cmd,*argv) ).fileno
+        import usubprocess
+        sp = usubprocess.spopen(cmd,*argv)
+        fno = sp.fileno()
+        XIO.FD[fno]=sp
+        return fno
 
     def fopen(fn,mode='rb'):
         return XIO(  open(fn,mode) , mode ).fileno
@@ -294,18 +132,30 @@ if UPY:
         print("<Thread Listening>")
         critical = False
         while not reset:
+            if keep_alive_ping:
+                print('.',end='')
+
             if self.Wake:
                 self.step()
                 while len(self.q):
                     critical = False
                     rpc = self.q.pop(0)
                     seq = rpc.pop('s',-1)
-                    mak = rpc.pop('m').split('.') , rpc.pop('a',()), rpc.pop('k',{})
+
+                    mak = rpc.pop('m').split('.') , rpc.pop('a',()), rpc.pop('k',{}), True
+
                     if len(mak[0]):
                         smak = str(mak[0][0])
+
+                    if smak[0]=="+":
+                        mak[0][0]==mak[0][0][1:]
+                        mak[3] = False
+
                     resp = xreply.do_raw(*mak)
-                    if smak not in ['ping','fwrite']:
+
+                    if not mak[3]:
                         print('RET(%s):' % smak,repr(resp))
+
                     self.TX( json.dumps( [seq, resp ] ) )
                 if test_critical:
                     if critical:

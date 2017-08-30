@@ -81,7 +81,7 @@ class Lapse(Lapse):
 
 class TXRX:
 
-    def setup(self,sock,stats=False,ticks=5):
+    def setup(self,sock,stats=False,ticks=10):
         self.sock = sock
         if stats:
             self.ticks = Lapse(ticks)
@@ -106,7 +106,7 @@ class TXRX:
 
     def stats(self):
         if self.ticks:
-            print( self.ticks.bw(self.srx) , '     ', self.ticks.bw(self.stx) )
+            print("\n", self.ticks.bw(self.srx) , '     ', self.ticks.bw(self.stx) )
             return True
 
 
