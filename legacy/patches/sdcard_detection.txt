@@ -1,0 +1,6 @@
+
+[mmc0_para]
+
+sdc_detmode = 1
+
+

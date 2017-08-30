@@ -1,0 +1,3 @@
+[uart1]
+uart_used       = 1
+uart_port       = 1
