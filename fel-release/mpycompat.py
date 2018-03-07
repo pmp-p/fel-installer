@@ -12,11 +12,16 @@ builtins.sys = sys
 builtins.builtins = builtins
 
 impl = sys.implementation.name[:3]
+
+builtins.ESP = False
+
 if impl=='mic':
     impl='upy'
     builtins.UPY = True
+
 else:
     builtins.UPY = False
+
 
 dirname = __file__.rsplit('mpycompat',1)[0]
 sys.path.insert(0,'%s/xpy' % dirname )
@@ -130,22 +135,49 @@ class robject(object):
 
 def noop(*argv,**kw):pass
 
-class Debugger:
-
-    def unhandled_coroutine(self,tb):
-        if UPY:
-            print("\n\033[31mCoroutine handling the faulty code has been killed",tb,file=sys.stderr)
+try:
+    if UPY:
+        if ESP:
+            from esp_debug import Debugger
         else:
-            import traceback
-            traceback.print_exc(file=sys.stderr)
+            from u_debug import Debugger
+    else:
+        from c_debug import Debugger
+except ImportError:
+    class Debugger:
+
+        def unhandled_coroutine(self,tb):
+            if UPY:
+                print("\n\033[31mCoroutine handling the faulty code has been killed",tb,file=sys.stderr)
+            else:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+
+
 
 
 
 class RunTime:
 
-    SerFlag = 0
-    COMRATE = 115200
-    COMPORT = '/dev/ttyGS0'
+    if UPY:
+        SerFlag = 0
+        COMRATE = 115200
+        COMPORT = '/dev/ttyGS0'
+        srv = 'http://192.168.1.66/mpy'
+
+        SSID = 'SSID'
+        WPA = 'password'
+
+        webrepl = None
+        server_handshake = None
+        server_http_handler = None
+
+        I2C_FOLLOWER = 0x0
+
+        MEM_init = 32678
+
+        urpc = None
+
 
     CPR = {}
 
@@ -156,22 +188,8 @@ class RunTime:
     builtins = builtins
     IP = '0.0.0.0'
 
-    urpc = None
-
-    srv = 'http://192.168.1.66/mpy'
-
     ANSI_CLS = ''.join( map(chr, [27, 99, 27, 91, 72, 27, 91, 50, 74] ) )
 
-    SSID = 'SSID'
-    WPA = 'password'
-
-    webrepl = None
-    server_handshake = None
-    server_http_handler = None
-
-    I2C_FOLLOWER = 0x0
-
-    MEM_init = 32678
 
     wantQuit = False
 
@@ -271,3 +289,10 @@ builtins.warn = logger
 builtins.dev = logger
 builtins.err = logger
 builtins._info = builtins.info = logger
+
+RunTime.async_event = logger
+
+try:
+    sys.excepthook = RunTime.debugger.unhandled_exception
+except:
+    err("Debugger off")

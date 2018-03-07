@@ -9,6 +9,7 @@ except:
     import time
     import os
 
+# /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq  ?
 
 if not './py3' in sys.path:
     sys.path.insert(0,'./py3')
@@ -245,7 +246,7 @@ class Terminal:
 
     def e(self,cmd,*argv):
         if self.spfd:
-            err('222: already running')
+            err('248: already running')
             return
 
         self.reset()
@@ -265,7 +266,7 @@ class Terminal:
                     data = rpc.sync('fread',self.spfd,64)
                     self.closed = data is None
                 except Exception as e:
-                    data ="IO ERROR 180: %s" % e
+                    data ="IO ERROR 267: %s" % e
                     self.closed = True
 
                 try:
@@ -291,7 +292,7 @@ class Terminal:
                     warn('200:',e)
                     self.closed = True
             yield bluelet.null()
-        warn('266: closed',self)
+        warn('294: closed',self)
 
 
 def ui(self=None):
@@ -310,7 +311,7 @@ def ui(self=None):
 
 
             last=add('Label',text='H3Droid Size:',x=4)
-            h3i_ph3d = add('InputField',name='h3i_ph3d',text='2048').halign(pad=1)
+            h3i_ph3d = add('InputField',name='h3i_ph3d',text='2900').halign(pad=1)
             #add.crlf()
 
             last=add('Label',text='Armbian Size:',x=4,y= h3i_ph3d.y)

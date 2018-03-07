@@ -204,6 +204,9 @@ cmda = cmd.split(' ')
 
 benv = []
 
+benv.append('date -s "%s-%s-%s %s:%s:%s"' % (y,my,d,h,m,s) )
+
+
 for k in os.environ:
     if k.startswith('H3I_') or k.startswith('FEL_') or k.startswith('ADB'):
         benv.append('export %s="%s"' % (k, os.getenv(k) ) )
@@ -216,22 +219,28 @@ print("================= /BENV =====================")
 import binascii
 benv = bytes(benv,'utf8')
 open('/tmp/board.last','wb').write(benv)
-benv = binascii.b2a_base64( benv ).decode().strip() + '=='
 
-if 0:
-    cmd = """
-"%s-%s-%s" "%s:%s:%s" "%s"
-""" % (y,my,d,h,m,s, benv )
-else:
-#    fbcon = 'cvbs'
-#    if not str(os.getenv('H3I_FEX')).count('orangepizero.bin'):
-    fbcon = 'fbcon'
-    cmd = """
-%s-%s-%s %s:%s:%s "%s" "%s"
-""" % (y,my,d,h,m,s, benv, fbcon )
+cmda.append( binascii.b2a_base64( benv ).decode().strip() + '==' )
+
+ws_up =  False
 
 
-cmda.append( cmd.strip() )
+def alogger(*argv,**kw):
+    global ws_up
+    if repr(argv).count('dev_ipc_0'):
+        print("\n $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ "*3,file=sys.stderr)
+        for arg in argv:
+            print(arg,end=' ',file=sys.stderr)
+        print('',file=sys.stderr)
+        if not UPY:
+            sys.stderr.flush()
+        print("\n $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ "*3,file=sys.stderr)
+        ws_up = True
+
+
+RunTime.async_event = alogger
+
+
 
 
 nbd_thr = threading.Thread(target=ndb_run, args=[])
@@ -283,15 +292,24 @@ else:
     print('\nERROR: no nbd callback, probably ADB did not call board with success, please retry')
     raise SystemExit
 
-print('\nWaiting for websocket control channel (can take 30 seconds)')
-#FIXME: hook webdav to know when server is ready or use special nbd sector
-for x in range(1,26):
+
+
+print('\nWaiting for websocket control channel (can take 30 up to seconds)')
+
+for x in range(1,30):
+    if ws_up :
+        break
     print('.',end='')
     sys.stdout.flush()
     Time.sleep(1)
 
+Time.sleep(1)
 
 ADB_QUIET = True  #do not spam ui screen
+
+print('\nConnected !\n')
+
+Time.sleep(2)
 
 exec( compile(open('insert_coin.py').read(), 'insert_coin', 'exec'), globals() ,locals() )
 

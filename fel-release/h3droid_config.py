@@ -5,8 +5,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-# "./sunxi-fel writel 0x01c20c94 3"
-
 import sys
 
 from mpycompat import *
@@ -16,13 +14,6 @@ import nanotui.events as events
 import glob
 
 SOC="Hx"
-RAMS = {
-    'kernel_addr_r'  : '0x40008000',
-    'ramdisk_addr_r' : '0x41000000',
-    'fel_scriptaddr': '0x43000000',
-    'scriptaddr'    : '0x43100000',
-
-}
 
 RAMS = {
         'kernel_addr_r' : '0x41000000',
@@ -32,21 +23,20 @@ RAMS = {
     }
 
 
-
 FEL_SD = 'uboots/tools/fel-sdboot.sunxi'
 
 SOCS = {
 
-    'Video Helper' : {
-            'SPL'       : 'ub/h3/sunxi-h3-video-helper',
-            'H3I_UBOOT' : 'ub/none',
-            'H3I_FEX'   : 'H3/orangepilite.bin',
-            'H3I_AB'    : 'video-helper',
+    'OPI Zero DBG' : {
+            'SPL'       : 'ub/h2/sun8i-h2-spl.bin-orangepi_zero',
+            'H3I_UBOOT' : 'ub/dbg/u-boot-sunxi-with-spl.bin-orangepi_zero',
+            'H3I_FEX'   : 'H3/orangepizero.bin',
+            'H3I_AB'    : 'orange-pi-zero',
         },
 
     'Orange PI Zero +2 H3 (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h2-plus-orangepi-zero',
-            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero_plus_2',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_zero',
             'H3I_FEX'   : 'H3/orangepizeroplus2-h3.bin',
             'H3I_AB'    : 'orange-pi-zero-2-h3',
         },
@@ -60,7 +50,7 @@ SOCS = {
 
     'Orange PI Lite (Xunlong)' : {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-lite',
-            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_lite',
+            'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepilite',
             'H3I_FEX'   : 'H3/orangepilite.bin',
             'H3I_AB'    : 'orange-pi-lite',
         },
@@ -75,7 +65,7 @@ SOCS = {
     'Orange Pi +2 (Xunlong)': {
             'SPL'       : 'ub/h3/sun8i-h3-orangepi-plus',
             'H3I_UBOOT' : 'uboots/u-boot-sunxi-with-spl.bin-orangepi_plus',
-            'H3I_FEX'   : 'H3/orangepiplus2.bin',
+            'H3I_FEX'   : 'H3/orangepiplus.bin',
             'H3I_AB'    : 'orange-pi-plus-2',
         },
 
@@ -99,21 +89,6 @@ SOCS = {
             'H3I_FEX'   : 'H3/orangepiplus2e.bin',
             'H3I_AB'    : 'orange-pi-plus-2e',
         },
-    'A33 1024x600' : {
-            'SPL'       : 'ub/a33/sun8i-a33-q8-tablet',
-            'H3I_UBOOT' : 'u-boot-sunxi-with-spl.sun8i-a33-q8-tablet',
-            'H3I_FEX'   : 'A33/sun8i-a33-q8-tablet.bin',
-            'H3I_AB'    : 'sun8i-a33-q8-tablet',
-
-    },
-
-    'A33 olimex' : {
-            'SPL'       : 'ub/a33/sun8i-a33-olinuxino',
-            'H3I_UBOOT' : 'u-boot-sunxi-with-spl.a33-olinuxino',
-            'H3I_FEX'   : 'A33/sun8i-a33-q8-tablet.bin',
-            'H3I_AB'    : 'sun8i-a33-olinuxino',
-
-    }
 
 }
 
@@ -171,14 +146,6 @@ def condition1(disp):
             SOC='H5'
         elif test.count(' H3 '):
             SOC='H3'
-        elif test.count(' A33 '):
-            SOC='A33'
-        elif test.count(' A23 '):
-            SOC='A23'
-        elif test.count(' A13 '):
-            SOC='A13'
-        elif test.count(' A64 '):
-            SOC='A64'
         else:
             disp('No support ! %s'%test)
             add['zadig'].set_text('No Luck')
@@ -195,18 +162,10 @@ def step2():
     global d,lb,kl,li,warn0, debug_lb, disp
 
     items = []
-    for item in glob.glob('ub/%s/sun*-*' % SOC.lower() ):
+    for item in glob.glob('ub/h?/sun8i-h*'):
         for elem in SOCS:
             if item in SOCS[elem].values():
                 items.append( elem )
-
-    #H2 announce itself as H3
-    if SOC=='H3':
-        for item in glob.glob('ub/h2/sun*-*'):
-            for elem in SOCS:
-                if item in SOCS[elem].values():
-                    items.append( elem )
-
 
     items.sort()
 
@@ -217,7 +176,7 @@ def step2():
     lb.reparent_to(fb,expand=True)
 
     items = []
-    for item in glob.glob('boot/%s*' % SOC.upper()[0:2] ):
+    for item in glob.glob('boot/*'):
         items.append( item.rsplit('/',1)[-1] )
 
 
@@ -268,7 +227,7 @@ if __name__ == "__main__":
             FEL = './fel-bin/sunxi-fel.exe -l'
             FEL_fel = 'exe'
         else:
-            FEL_fel = os.popen('uname -m').read().strip()#'x86_64'
+            FEL_fel = os.popen('arch').read().strip()#'x86_64'
 
             FEL = './fel-bin/sunxi-fel.%s -l 2>&1' % FEL_fel
     else:
@@ -370,19 +329,11 @@ if __name__ == "__main__":
 
         uboot = soc['SPL']
 
-        fex_patches = ['legacy/patches/sdcard_detection.txt', 'legacy/patches/uart1.txt']
-
         cvbs=disp.get_text().strip()
         if cvbs.startswith('CVBS-'):
-            if cvbs.upper().count('PAL'):
-                fex_patches.append('legacy/patches/cvbs-pal.txt')
-            else:
-                fex_patches.append('legacy/patches/cvbs-ntsc.txt')
             cvbs=cvbs.split('-',1)[-1]
         else:
             cvbs=''
-
-        os.putenv('FEL_PATCH',':'.join(fex_patches))
 
         os.putenv('H3I_CVBS',cvbs)
         os.putenv('H3I_ARMBIAN_SIZE',"0" )

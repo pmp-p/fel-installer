@@ -19,29 +19,19 @@ then
  write 0x43300000 ${FEL_rd}
 "
 else
-    if echo ${FEL_SCRMODE}|grep DBG >/dev/null
-    then
-        cmd="${fel} -p -v uboot ${FEL_SPL} \
- write 0x41000000 boot/${FEL_KMD5}/*mlinuz-* \
- write 0x43000000 legacy/${FEL_FEX} \
- write 0x43100000 /tmp/boot.bin \
- write 0x50000000 ${FEL_rd}
-"
-    else
-        cmd="${fel} -p -v uboot ${FEL_SPL} \
+    cmd="${fel} -p -v uboot ${FEL_SPL} \
  write 0x41000000 boot/${FEL_KMD5}/*mlinuz-* \
  write 0x43000000 /tmp/fex.bin \
  write 0x43100000 /tmp/script.bin \
  write 0x50000000 ${FEL_rd}
 "
-    fi
 fi
 
 
 
 #0x43200000
 
-export ADB=./adb-bin/adb.${FEL_fel}
+export ADB="./adb-bin/adb.${FEL_fel} -d"
 
 
 echo "\
@@ -75,7 +65,7 @@ echo "________________________________________________________________"
 WD="`pwd`"
 echo WD=${WD}
 
-python3 -u -B ./legacy/patchfex.py patch "legacy/${FEL_FEX}" legacy/patches/sdcard_detection.txt  > /tmp/script.fex
+python3 -u -B ./legacy/patchfex.py patch "legacy/${FEL_FEX}" ${FEL_PATCH} > /tmp/script.fex
 
 echo "Source boot script : ${FEL_scr}"
 cp -vf "fel-bin/mkimage.${FEL_fel}" "fel-bin/sunxi-fexc.${FEL_fel}" /tmp/
@@ -92,22 +82,20 @@ echo -n "Returning to source directory : "
 cd "${WD}"
 pwd
 
-
-
-
-
+echo $cmd
 
 if echo ${FEL_SCRMODE}|grep DBG >/dev/null
 then
-    echo $cmd
+
+    echo "________________________________________________________________"
+    echo "ADB=$ADB"
+    env |grep H3I_|sort| tee /tmp/board.last
+    env |grep FEL_|sort| tee -a /tmp/board.last
+    env |grep ADB |sort| tee -a /tmp/board.last
+    echo ==============================================================
+else
     echo "________________________________________________________________"
 fi
-
-echo "ADB=$ADB"
-env |grep H3I_|sort| tee /tmp/board.last
-env |grep FEL_|sort| tee -a /tmp/board.last
-env |grep ADB |sort| tee -a /tmp/board.last
-echo ==============================================================
 
 $cmd
 
@@ -157,7 +145,7 @@ then
 fi
 
 echo "
-Will use H3I_IMG=$H3I_IMG as intaller source
+Will use H3I_IMG=$H3I_IMG as installer source
 "
 
 if echo  ${FEL_SCRMODE}|grep DBG >/dev/null
@@ -181,8 +169,12 @@ if python3.4 -V
 then
     export PY3="python3.4"
 else
-    export PY3="python3.5"
-
+    if python3.5 -V
+    then
+        export PY3="python3.5"
+    else
+        export PY3="python3"
+    fi
 fi
 echo "Using $PY3 as python3"
 $PY3 -u -B fileserve.py 2>> /tmp/fileserve.log && stty sane || stty sane
