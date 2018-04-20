@@ -1,0 +1,46 @@
+#Begin CVBS-PAL
+[boot_disp]
+advert_disp = 1
+auto_hpd = 1
+output_type = 2
+hdmi_channel = 0
+hdmi_mode = 4
+cvbs_channel = 1
+cvbs_mode = 11
+output_full = 1
+hdmi_mode_check = 1
+
+[disp_init]
+disp_init_enable = 1
+disp_mode = 1
+screen0_output_type = 2
+screen0_output_mode = 14
+screen1_output_type = 2
+screen1_output_mode = 14
+
+fb0_format = 0
+fb0_width = 0
+fb0_height = 0
+fb0_scaler_mode_enable = 1
+
+fb1_format = 0
+fb1_width = 0
+fb1_height = 0
+fb1_scaler_mode_enable = 1
+
+[hdmi_para]
+hdmi_used = 0
+
+[tv_para]
+tv_used = 1
+tv_dac_used = 1
+tv_dac_src0 = 1
+tv_dac_src1 = 2
+
+[tvout_para]
+tvout_used = 1
+tvout_channel_num = 0
+tv_en = 1
+
+#End CVBS-PAL
+

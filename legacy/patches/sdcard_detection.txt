@@ -1,6 +1,8 @@
+#Begin SDCARD_DETECT
 
 [mmc0_para]
 
 sdc_detmode = 1
 
+#End SDCARD_DETECT
 

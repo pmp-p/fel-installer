@@ -1,3 +1,9 @@
+#Begin UART1
+
 [uart1]
+
 uart_used       = 1
 uart_port       = 1
+uart_type       = 2
+
+#End UART1
