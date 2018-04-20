@@ -4,22 +4,27 @@ import sys
 import os
 
 
-def as_fex(fn):
-    srcf = open( fn , 'rb' )
-    c = srcf.readline()
-    if c.count( b'')>500:
-        #print('BIN2FEX %s' % fn )
-        srcf.close()
-        srcf = os.popen('bin2fex < %s 2>/dev/null' % fn )
-    else:
-        srct=[]
-        for line in srcf.readlines():
-            srct.append( line.decode('utf8'))
-        return srct
-    return srcf.readlines()
+def as_fex(fn,bin=None):
+    with open( fn , 'rb' ) as srcf:
+        c = srcf.readline()
+        if (bin is None or bin) or c.count( b'')>500:
+            print('BIN2FEX %s' % fn , file=sys.stderr )
+            srcf.close()
+            srcf = os.popen('./fel-bin/sunxi-fexc.%s -I bin -O fex %s 2>/dev/null' %(os.getenv('FEL_fel'),  fn) )
+        else:
+            try:
+                srct=[c]
+                for line in srcf.readlines():
+                    srct.append( line.decode('utf8'))
+                return srct
+            except:
+                #autodetect failed on a bin
+                print('BIN2FEX(onerror) %s' % fn , file=sys.stderr )
+                srcf.close()
+                return as_fex(fn,bin=True)
+        return srcf.readlines()
 
 SECTIONS = {}
-
 
 
 class FEX(dict):
@@ -28,14 +33,19 @@ class FEX(dict):
         self.LAST = ' '
         self[self.LAST]={}
 
-    def load(self,fn):
-        srcf = as_fex( fn )
-
-        for line in srcf:
+    def load(self,fn,bin=None):
+        for line in as_fex( fn , bin=bin ):
             l = line.strip()
+            if bin is False:
+                print(l,file=sys.stderr)
+                sys.stderr.flush()
+
             if l:
-                if l[0]=='[':
-                    l = l.replace(' ','')
+                if l[0]=='#':
+                    print(l,file=sys.stderr)
+
+                elif l[0]=='[':
+                    l = l.replace(' ','').replace('\t','')
                     self.setdefault(l, {} )
                     self.LAST = l
                 else:
@@ -43,15 +53,17 @@ class FEX(dict):
                         k,v = l.split('=',1)
                         k = k.strip()
                         v = v.strip()
+                        #if self[self.LAST].get(k):
+                        if bin is False:
+                            print(self.LAST,k,'<=',v,file=sys.stderr)
                         self[self.LAST][k] = v
                     except:
-                        print(l)
+                        print(l,file=sys.stderr)
 
     def diff(self,old):
         SK = list(self.keys())
         SK.sort()
         buf = []
-
 
         for S in SK:
             olds  = old.get(S,{})
@@ -130,9 +142,11 @@ elif 'patch':
     src =FEX()
     src.load(sys.argv[-2])
 
-#    dst =FEX()
-#    dst.load(sys.argv[-2])
-    src.load(sys.argv[-1])
+    print(sys.argv[-1],file=sys.stderr)
+    sys.stderr.flush()
+    for patch in sys.argv[-1].split(':'):
+        if patch:
+            src.load(patch,bin=False)
     src.dump()
 
 
