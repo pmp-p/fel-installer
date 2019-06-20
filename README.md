@@ -21,5 +21,5 @@ SPDX-License-Identifier: CC-BY-ND-4.0
 
 [![PayPayl](https://img.shields.io/badge/Paypal-Me-yellow.svg)](http://paypal.me/pmpp)
 
-<img src="https://h3droid.com/user/pages/01.home/05.fel-installer/fel-launch-installer/fel-launchnew-3.png" align="right" width=400 />
+<img src="https://h3droid.com/user/pages/01.home/06.fel-installer/fel-launch-installer/fel-launchnew-3.png" align="right" width=400 />
 
