@@ -1,5 +1,5 @@
 # fel-installer
-<img src="https://h3droid.com/user/pages/01.home/05.fel-installer/fel-launch-installer/fel-launchnew-2.png" align="right" width=400 />
+<img src="https://h3droid.com/user/pages/01.home/06.fel-installer/fel-launch-installer/fel-launchnew-2.png" align="right" width=400 />
 
 # H3 board FEL installer for H3Droid and Armbian
 
